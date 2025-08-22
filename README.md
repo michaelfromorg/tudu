@@ -1,3 +1,3 @@
 # tudu
 
-A CLI program to help manage todos in your codebase.
+A CLI program to help manage to-dos in your codebase.
