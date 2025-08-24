@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum TodoReference {
     Untracked,                     // Plain TODO: without ID
@@ -106,10 +107,8 @@ fn scan_directory(dir_path: &Path, todos: &mut Vec<TodoItem>) {
             }
         };
 
-        if entry.file_type().map_or(false, |ft| ft.is_file()) {
-            if should_scan_file(entry.path()) {
-                scan_file(entry.path(), todos);
-            }
+        if entry.file_type().is_some_and(|ft| ft.is_file()) && should_scan_file(entry.path()) {
+            scan_file(entry.path(), todos);
         }
     }
 }
@@ -178,27 +177,27 @@ fn parse_todo_reference(line: &str) -> Option<TodoReference> {
     }
 
     // Check if it has parentheses
-    if let Some(open_paren) = line.find('(') {
-        if let Some(close_paren) = line.find(')') {
-            // Make sure ) comes after (
-            if close_paren > open_paren {
-                let inside = &line[open_paren + 1..close_paren].trim();
+    if let Some(open_paren) = line.find('(')
+        && let Some(close_paren) = line.find(')')
+    {
+        // Make sure ) comes after (
+        if close_paren > open_paren {
+            let inside = &line[open_paren + 1..close_paren].trim();
 
-                // Check for comma (attributes present)
-                if let Some(comma_pos) = inside.find(',') {
-                    let id_part = &inside[..comma_pos].trim();
-                    if is_valid_id(id_part) {
-                        return Some(TodoReference::Tracked(id_part.to_string()));
-                    }
-                } else if is_valid_id(inside) {
-                    // Just an ID, no attributes
-                    return Some(TodoReference::Tracked(inside.to_string()));
+            // Check for comma (attributes present)
+            if let Some(comma_pos) = inside.find(',') {
+                let id_part = &inside[..comma_pos].trim();
+                if is_valid_id(id_part) {
+                    return Some(TodoReference::Tracked(id_part.to_string()));
                 }
-
-                // Has parens but not a valid ID - treat as untracked
-                // This handles TODO(john), TODO(wip), etc.
-                return Some(TodoReference::Untracked);
+            } else if is_valid_id(inside) {
+                // Just an ID, no attributes
+                return Some(TodoReference::Tracked(inside.to_string()));
             }
+
+            // Has parens but not a valid ID - treat as untracked
+            // This handles TODO(john), TODO(wip), etc.
+            return Some(TodoReference::Untracked);
         }
     }
 
@@ -292,21 +291,19 @@ fn parse_todo_attributes(line: &str) -> Option<HashMap<String, TodoAttributeValu
     }
 
     // Check if it has parentheses
-    if let Some(open_paren) = line.find('(') {
-        if let Some(close_paren) = line.find(')') {
-            // Make sure ) comes after (
-            if close_paren > open_paren {
-                let inside = &line[open_paren + 1..close_paren].trim();
+    if let Some(open_paren) = line.find('(')
+        && let Some(close_paren) = line.find(')')
+    {
+        // Make sure ) comes after (
+        if close_paren > open_paren {
+            let inside = &line[open_paren + 1..close_paren].trim();
 
-                // Check for comma (attributes present), skip the ID portion
-                if let Some(comma_pos) = inside.find(',') {
-                    return Some(parse_attributes_from_string(
-                        &inside[comma_pos + 1..].trim(),
-                    ));
-                }
-
-                return None;
+            // Check for comma (attributes present), skip the ID portion
+            if let Some(comma_pos) = inside.find(',') {
+                return Some(parse_attributes_from_string(inside[comma_pos + 1..].trim()));
             }
+
+            return None;
         }
     }
 
@@ -320,23 +317,22 @@ mod parse_todo_attributes_tests {
     #[test]
     fn some_attributes() {
         let line = "// TODO(TASK-123, bidir, labels=urgent,backend, assignee=alice): Fix bug";
-        let todo = parse_todo_complete(line).unwrap();
+        let attributes = parse_todo_attributes(line).unwrap();
 
-        assert!(matches!(todo.reference, Some(TodoReference::Tracked(id)) if id == "TASK-123"));
-        assert!(todo.attributes.is_some());
-
-        let attributes = todo.attributes.unwrap();
-        assert_eq!(attributes.get("bidir"), Some(&AttributeValue::Flag(true)));
+        assert_eq!(
+            attributes.get("bidir"),
+            Some(&TodoAttributeValue::Flag(true))
+        );
         assert_eq!(
             attributes.get("labels"),
-            Some(&AttributeValue::List(vec![
+            Some(&TodoAttributeValue::List(vec![
                 "urgent".to_string(),
                 "backend".to_string()
             ]))
         );
         assert_eq!(
             attributes.get("assignee"),
-            Some(&AttributeValue::Text("alice".to_string()))
+            Some(&TodoAttributeValue::Text("alice".to_string()))
         );
     }
 }
@@ -391,10 +387,7 @@ fn print_results(todos: &[TodoItem], verbose: bool) {
     let mut todos_by_file: HashMap<&PathBuf, Vec<&TodoItem>> = HashMap::new();
 
     for todo in todos {
-        todos_by_file
-            .entry(&todo.file_path)
-            .or_insert_with(Vec::new)
-            .push(todo);
+        todos_by_file.entry(&todo.file_path).or_default().push(todo);
     }
 
     let mut sorted_files: Vec<_> = todos_by_file.keys().collect();
