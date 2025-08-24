@@ -1,0 +1,142 @@
+---
+source: tests/cli.rs
+expression: stdout
+---
+Scanned and found 35 TODOs
+
+Found 35 TODOs:
+📁 tests/fixtures/repo/app.py:
+  Line 1: # TODO(TASK-222): Python/shell style comment
+    Tracking issue TASK-222
+    No attributes
+
+==========================
+
+📁 tests/fixtures/repo/index.html:
+  Line 1: <!-- TODO(TASK-333): HTML style comment -->
+    Tracking issue TASK-333
+    No attributes
+
+==========================
+
+📁 tests/fixtures/repo/main.js:
+  Line 4: // TODO: implement user authentication
+    Not synced
+    No attributes
+  Line 5: // TODO: add error handling to this function
+    Not synced
+    No attributes
+  Line 6: // FIXME: memory leak when processing large files
+    Not synced
+    No attributes
+  Line 7: /* TODO: refactor this entire module */
+    Not synced
+    No attributes
+  Line 10: // TODO(TASK-123): implement caching layer
+    Tracking issue TASK-123
+    No attributes
+  Line 11: // TODO(BUG-456): fix race condition in async handler
+    Tracking issue BUG-456
+    No attributes
+  Line 12: // TODO(FEATURE-789): add support for multiple file uploads
+    Tracking issue FEATURE-789
+    No attributes
+  Line 13: // FIXME(ISSUE-321): remove deprecated API calls
+    Tracking issue ISSUE-321
+    No attributes
+  Line 16: // TODO(TASK-100, bidir): implement two-way sync
+    Tracking issue TASK-100
+    - bidir: true
+  Line 17: // TODO(BUG-200, labels=urgent,backend): fix database connection pool
+    Tracking issue BUG-200
+    - labels: ["urgent", "backend"]
+  Line 18: // TODO(TASK-300, assignee=alice, due=2025-09-01): implement OAuth2 flow
+    Tracking issue TASK-300
+    - assignee: alice
+    - due: 2025-09-01
+  Line 19: // TODO(FEAT-400, bidir, labels=frontend,performance, assignee=bob): optimize React renders
+    Tracking issue FEAT-400
+    - assignee: bob
+    - bidir: true
+    - labels: ["frontend", "performance"]
+  Line 22: // TODO(): empty parentheses should be untracked
+    Not synced
+    No attributes
+  Line 23: // TODO(not-an-id): lowercase should be untracked
+    Not synced
+    No attributes
+  Line 24: // TODO(TASK-123, labels=security,auth, close_on_delete): implement RBAC
+    Tracking issue TASK-123
+    - close_on_delete: true
+    - labels: ["security", "auth"]
+  Line 25: // TODO(BUG-999, status=In Progress, prop.priority=high): custom Notion properties
+    Tracking issue BUG-999
+    - prop.priority: high
+    - status: In Progress
+  Line 28: // TODO TASK-567: old style without parentheses
+    Not synced
+    No attributes
+  Line 29: // FIXME BUG-890: another legacy format
+    Not synced
+    No attributes
+  Line 44: /* TODO(BUG-888, labels=critical): another block style */
+    Tracking issue BUG-888
+    - labels: critical
+  Line 47: // TODO(TASK-111): C++ style comment
+    Tracking issue TASK-111
+    No attributes
+  Line 50: // TODO(TASK-1000, bidir, labels=api,rest,graphql, assignee=charlie, due=2025-12-31, close_on_delete=true): full attribute test
+    Tracking issue TASK-1000
+    - assignee: charlie
+    - bidir: true
+    - close_on_delete: true
+    - due: 2025-12-31
+    - labels: ["api", "rest", "graphql"]
+  Line 51: // TODO(TASK-2000, labels=feature, status=Todo, section=parser, db=tasks): Notion-specific attributes
+    Tracking issue TASK-2000
+    - db: tasks
+    - labels: feature
+    - section: parser
+    - status: Todo
+  Line 56: // TODO(TASK-501): inject dependencies instead of direct instantiation
+    Tracking issue TASK-501
+    No attributes
+  Line 58: this.cache = null; // TODO: add Redis cache here
+    Not synced
+    No attributes
+  Line 62: // FIXME(BUG-601): add input validation
+    Tracking issue BUG-601
+    No attributes
+  Line 64: // TODO(TASK-701, labels=performance): implement caching
+    Tracking issue TASK-701
+    - labels: performance
+  Line 67: // TODO: hash passwords properly
+    Not synced
+    No attributes
+  Line 72: // TODO(TASK-801, assignee=alice, due=2025-10-15): add email verification
+    Tracking issue TASK-801
+    - assignee: alice
+    - due: 2025-10-15
+  Line 74: /* TODO(BUG-901): transaction rollback not working */
+    Tracking issue BUG-901
+    No attributes
+
+==========================
+
+📁 tests/fixtures/repo/test.rs:
+  Line 3: // TODO: implement this
+    Not synced
+    No attributes
+  Line 4: /* FIXME: memory leak here */
+    Not synced
+    No attributes
+  Line 8: // TODO: add error handling
+    Not synced
+    No attributes
+  Line 9: /* TODO: optimize performance */
+    Not synced
+    No attributes
+
+==========================
+
+Total: 35 TODOs across 4 file(s)

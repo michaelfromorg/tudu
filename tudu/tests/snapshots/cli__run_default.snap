@@ -1,0 +1,59 @@
+---
+source: tests/cli.rs
+expression: stdout
+---
+Scanned and found 35 TODOs
+
+Found 35 TODOs:
+📁 tests/fixtures/repo/app.py:
+  Line 1
+
+==========================
+
+📁 tests/fixtures/repo/index.html:
+  Line 1
+
+==========================
+
+📁 tests/fixtures/repo/main.js:
+  Line 4
+  Line 5
+  Line 6
+  Line 7
+  Line 10
+  Line 11
+  Line 12
+  Line 13
+  Line 16
+  Line 17
+  Line 18
+  Line 19
+  Line 22
+  Line 23
+  Line 24
+  Line 25
+  Line 28
+  Line 29
+  Line 44
+  Line 47
+  Line 50
+  Line 51
+  Line 56
+  Line 58
+  Line 62
+  Line 64
+  Line 67
+  Line 72
+  Line 74
+
+==========================
+
+📁 tests/fixtures/repo/test.rs:
+  Line 3
+  Line 4
+  Line 8
+  Line 9
+
+==========================
+
+Total: 35 TODOs across 4 file(s)

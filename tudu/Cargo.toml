@@ -7,4 +7,8 @@ edition = "2024"
 regex = "1.10"
 ignore = "0.4"
 walkdir = "2.0"
-clap = { version = "4.0", features = ["derive"]}
+clap = { version = "4.0", features = ["derive"] }
+
+[dev-dependencies]
+insta = { version = "1.39.0", features = ["glob"] }
+assert_cmd = "2.0"

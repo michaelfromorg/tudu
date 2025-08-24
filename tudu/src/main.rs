@@ -408,8 +408,10 @@ fn print_results(todos: &[TodoItem], verbose: bool) {
                 }
                 match &todo.attributes {
                     Some(attrs) => {
-                        for (key, value) in attrs {
-                            match value {
+                        let mut keys: Vec<_> = attrs.keys().collect();
+                        keys.sort();
+                        for key in keys {
+                            match &attrs[key] {
                                 TodoAttributeValue::Flag(b) => println!("    - {}: {}", key, b),
                                 TodoAttributeValue::Text(s) => println!("    - {}: {}", key, s),
                                 TodoAttributeValue::List(vs) => println!("    - {}: {:?}", key, vs),
@@ -421,9 +423,8 @@ fn print_results(todos: &[TodoItem], verbose: bool) {
             } else {
                 println!("  Line {}", todo.line_number);
             }
-
-            println!();
         }
+        println!();
         println!("==========================");
         println!();
     }
