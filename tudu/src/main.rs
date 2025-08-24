@@ -1,16 +1,30 @@
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
-// use std::env;
 use std::fs;
 use std::path::{PathBuf,Path};
 use std::process;
+
+#[derive(Debug, Clone)]
+enum TodoRef {
+    Untracked,                    // Plain TODO: without ID
+    Tracked(String),              // TODO(TASK-123): 
+    New { title: Option<String> } // TODO(new="Create user service"):
+}
+
+#[derive(Debug, Clone)]
+struct TodoAttrs {
+    priority: Option<String>, // e.g., "high", "medium", "low"
+    tags: Vec<String>,        // e.g., ["backend", "urgent"]
+}
 
 #[derive(Debug, Clone)]
 struct TodoItem {
     file_path: PathBuf,
     line_number: usize,
     line_content: String,
+    reference: Option<TodoRef>,
+    attrs: Option<TodoAttrs>
 }
 
 #[derive(Parser)]
@@ -43,7 +57,9 @@ fn main() {
         process::exit(1);
     }
 
-    print_results(&all_todos, args.verbose);
+    process_results(&all_todos);
+
+    print_results(&all_todos, args.verbose);    
 }
 
 fn scan_file(file_path: &Path, todos: &mut Vec<TodoItem>) {
@@ -119,7 +135,135 @@ fn find_todos_in_content(contents: &str, file_path: &Path, todos: &mut Vec<TodoI
                 file_path: file_path.to_path_buf(),
                 line_number: line_number + 1,
                 line_content: line.trim().to_string(),
+                reference: parse_todo_reference(line),
+                attrs: None,
             });
+        }
+    }
+}
+
+fn parse_todo_reference(line: &str) -> Option<TodoRef> {
+    if !line.contains("TODO") && !line.contains("FIXME") {
+        return None;
+    }
+
+    // Check if it has parentheses
+    if let Some(open_paren) = line.find('(') {
+        if let Some(close_paren) = line.find(')') {
+            // Make sure ) comes after (
+            if close_paren > open_paren {
+                let inside = &line[open_paren + 1..close_paren].trim();
+
+                // Check for comma (attributes present)
+                if let Some(comma_pos) = inside.find(',') {
+                    let id_part = &inside[..comma_pos].trim();
+                    if is_valid_id(id_part) {
+                        // TODO: Parse attributes later
+                        return Some(TodoRef::Tracked(id_part.to_string()));
+                    }
+                } else if is_valid_id(inside) {
+                    // Just an ID, no attributes
+                    return Some(TodoRef::Tracked(inside.to_string()));
+                }
+
+                // Has parens but not a valid ID - treat as untracked
+                // This handles TODO(john), TODO(wip), etc.
+                return Some(TodoRef::Untracked);
+            }
+        }
+    }
+
+    Some(TodoRef::Untracked)
+}
+
+#[cfg(test)]
+mod parse_todo_reference_tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_untracked() {
+        let line = "// TODO: Refactor this function";
+        let result = parse_todo_reference(line);
+        match result {
+            Some(TodoRef::Untracked) => {}
+            _ => panic!("Expected Untracked"),
+        }
+    }
+
+    #[test]
+    fn test_parse_tracked() {
+        let line = "// TODO(BUG-123): Refactor this function";
+        let result = parse_todo_reference(line);
+        match result {
+            Some(TodoRef::Tracked(id)) => {
+                assert_eq!(id, "BUG-123");
+            }
+            _ => panic!("Expected Tracked with ID BUG-123"),
+        }
+    }
+
+    #[test]
+    fn test_parse_with_attributes() {
+        let line = "// TODO(TASK-123, bidir): Implement feature";
+        let result = parse_todo_reference(line);
+        match result {
+            Some(TodoRef::Tracked(id)) => {
+                assert_eq!(id, "TASK-123");
+            }
+            _ => panic!("Expected Tracked with ID TASK-123"),
+        }
+    }
+
+    #[test]
+    fn test_parse_empty_parens() {
+        let line = "// TODO(): Empty parens";
+        let result = parse_todo_reference(line);
+        assert!(matches!(result, Some(TodoRef::Untracked)));
+    }
+
+    #[test]
+    fn test_parse_person_name() {
+        let line = "// TODO(alice): Review this";
+        let result = parse_todo_reference(line);
+        assert!(matches!(result, Some(TodoRef::Untracked)));
+    }
+}
+
+fn is_valid_id(s: &str) -> bool {
+    // Something of the form ABC-123 (at least one letter, a dash, at least one digit)
+    // TODO(michaelfromyeg): stop compiling regex every time
+    let id_regex = Regex::new(r"^[A-Z]+-\d+$").unwrap();
+    id_regex.is_match(s)
+}
+
+#[cfg(test)]
+mod is_valid_id_tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_ids() {
+        let valid_ids = vec!["TASK-1", "BUG-123", "FEATURE-4567"];
+        for id in valid_ids {
+            assert!(is_valid_id(id), "Expected '{}' to be valid", id);
+        }
+    }
+
+    #[test]
+    fn test_invalid_ids() {
+        let invalid_ids = vec!["task-1", "BUG123", "FEATURE_", "123-ABC", "BUG-"];
+        for id in invalid_ids {
+            assert!(!is_valid_id(id), "Expected '{}' to be invalid", id);
+        }
+    }
+}
+
+fn process_results(todos: &[TodoItem]) {
+    for todo in todos {
+        match &todo.reference {
+            Some(TodoRef::Untracked) => println!("Not synced"),
+            Some(TodoRef::Tracked(id)) => println!("Tracking issue {}", id),
+            Some(TodoRef::New { title }) => println!("Will create: {:?}", title),
+            None => println!("No reference found"),
         }
     }
 }
