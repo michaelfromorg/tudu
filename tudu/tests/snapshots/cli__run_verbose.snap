@@ -2,6 +2,8 @@
 source: tests/cli.rs
 expression: stdout
 ---
+Loaded configuration from '.tudu.yaml'
+Using configuration: Config { scan: ScanConfig { ignore: ["target/", "node_modules/"], include: ["**/*"], match_case_insensitive: false }, mode: "validate", output: OutputConfig { format: "standard", verbose: false } }
 Scanned and found 35 TODOs
 
 Found 35 TODOs:

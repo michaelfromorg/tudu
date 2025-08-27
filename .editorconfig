@@ -14,3 +14,7 @@ insert_final_newline = true
 [Cargo.lock]
 indent_style = space
 indent_size = 1
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2

@@ -1,0 +1,14 @@
+# .tudu.yaml example
+scan:
+  # ignore specific paths; alternative to `.tuduignore`
+  ignore:
+    - target/
+    - node_modules/
+  # include specific paths
+  include:
+    - "**/*"
+  match_case_insensitive: false
+mode: validate  # validate | sync
+output:
+  format: standard  # standard | json
+  verbose: false 

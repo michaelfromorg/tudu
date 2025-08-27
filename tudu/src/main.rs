@@ -1,3 +1,8 @@
+#![allow(dead_code)]
+///
+/// The source for the `tudu` command-line tool.
+/// This tool scans source code files for TODO comments and extracts structured information.
+///
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
@@ -5,7 +10,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum TodoReference {
     Untracked,                     // Plain TODO: without ID
@@ -15,7 +19,7 @@ enum TodoReference {
 
 #[derive(Debug, Clone, PartialEq)]
 enum TodoAttributeValue {
-    Flag(bool),        // bidir, one_way
+    Flag(bool),        // bidir
     Text(String),      // assignee=alice
     List(Vec<String>), // labels=urgent,backend
 }
@@ -38,6 +42,63 @@ struct Args {
     /// Show verbose output
     #[arg(short, long)]
     verbose: bool,
+
+    /// Output format: standard or json (overrides config)  
+    #[arg(long)]
+    format: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct Config {
+    #[serde(default)]
+    scan: ScanConfig,
+    #[serde(default = "default_mode")]
+    mode: String,
+    #[serde(default)]
+    output: OutputConfig,
+}
+
+#[derive(serde::Deserialize, Debug, Default)]
+#[serde(default)]
+struct ScanConfig {
+    ignore: Vec<String>,
+    include: Vec<String>,
+    match_case_insensitive: bool,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct OutputConfig {
+    #[serde(default = "default_format")]
+    format: String,
+    #[serde(default)]
+    verbose: bool,
+}
+
+fn default_mode() -> String {
+    "validate".to_string()
+}
+
+fn default_format() -> String {
+    "standard".to_string()
+}
+
+impl Default for OutputConfig {
+    fn default() -> Self {
+        Self {
+            format: default_format(),
+            verbose: false,
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            scan: ScanConfig::default(),
+            mode: default_mode(),
+            output: OutputConfig::default(),
+        }
+    }
 }
 
 fn main() {
@@ -48,9 +109,16 @@ fn main() {
         process::exit(1);
     }
 
+    let config = load_config();
+    println!("Using configuration: {:?}", config);
+
+    // Create a resizable vector to hold all found TODOs
     let mut all_todos = Vec::new();
 
     if args.path.is_file() {
+        // First notable example of borrowing in Rust:
+        // We pass a reference to args.path (which is owned by args)
+        // and a mutable reference to all_todos (which is owned by main)
         scan_file(&args.path, &mut all_todos);
     } else if args.path.is_dir() {
         scan_directory(&args.path, &mut all_todos);
@@ -63,11 +131,58 @@ fn main() {
     }
 
     process_results(&all_todos);
-    print_results(&all_todos, args.verbose);
+    // TODO(michaelfromyeg): support different output formats
+    print_results(&all_todos, resolve_verbose(&args, &config));
+}
+
+fn load_config() -> Config {
+    let config_path = Path::new(".tudu.yaml");
+
+    if config_path.exists() && config_path.is_file() {
+        match fs::read_to_string(config_path) {
+            Ok(contents) => match serde_yaml::from_str::<Config>(&contents) {
+                Ok(config) => {
+                    println!("Loaded configuration from '{}'", config_path.display());
+                    config
+                }
+                Err(err) => {
+                    eprintln!(
+                        "Error parsing config file '{}': {}",
+                        config_path.display(),
+                        err
+                    );
+                    process::exit(1);
+                }
+            },
+            Err(err) => {
+                eprintln!(
+                    "Error reading config file '{}': {}",
+                    config_path.display(),
+                    err
+                );
+                process::exit(1);
+            }
+        }
+    } else {
+        println!("No configuration file found. Using defaults.");
+        Config::default()
+    }
+}
+
+fn resolve_verbose(args: &Args, config: &Config) -> bool {
+    args.verbose || config.output.verbose
+}
+
+fn resolve_format(args: &Args, config: &Config) -> String {
+    args.format.clone().unwrap_or(config.output.format.clone())
 }
 
 fn scan_file(file_path: &Path, todos: &mut Vec<TodoItem>) {
+    // `unwrap_or` is used here because file paths can be non-UTF-8
+    // on some systems. In that case, we just use "unknown file". (We don't throw.)
     let filename = file_path.to_str().unwrap_or("unknown file");
+
+    // We then read the file, and match on various error types
     let contents = match fs::read_to_string(filename) {
         Ok(contents) => contents,
         Err(error) => {
@@ -90,6 +205,7 @@ fn scan_file(file_path: &Path, todos: &mut Vec<TodoItem>) {
 }
 
 fn scan_directory(dir_path: &Path, todos: &mut Vec<TodoItem>) {
+    // By default, this includes gitignore rules
     let walker = ignore::WalkBuilder::new(dir_path)
         .add_custom_ignore_filename(".tuduignore")
         .build();
@@ -107,6 +223,7 @@ fn scan_directory(dir_path: &Path, todos: &mut Vec<TodoItem>) {
             }
         };
 
+        // `is_some_and` here is a nice way to combine an Option check and a predicate (is_file)
         if entry.file_type().is_some_and(|ft| ft.is_file()) && should_scan_file(entry.path()) {
             scan_file(entry.path(), todos);
         }
@@ -114,7 +231,8 @@ fn scan_directory(dir_path: &Path, todos: &mut Vec<TodoItem>) {
 }
 
 fn should_scan_file(path: &Path) -> bool {
-    // Check file extension
+    // `and_then` is used to chain Option-returning calls
+    // (similar to `is_some_and`, but for mapping)
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| {
@@ -147,6 +265,7 @@ fn should_scan_file(path: &Path) -> bool {
                     | "less"
             )
         })
+        // `unwrap` here to catch files without an extension
         .unwrap_or(false)
 }
 
@@ -188,6 +307,8 @@ fn parse_todo_reference(line: &str) -> Option<TodoReference> {
             if let Some(comma_pos) = inside.find(',') {
                 let id_part = &inside[..comma_pos].trim();
                 if is_valid_id(id_part) {
+                    // This is how we build a Tracked variant of the enum!
+                    // `Some` is used because the return type is Option<TodoReference>
                     return Some(TodoReference::Tracked(id_part.to_string()));
                 }
             } else if is_valid_id(inside) {
@@ -261,6 +382,8 @@ fn is_valid_id(s: &str) -> bool {
     // Something of the form ABC-123 (at least one letter, a dash, at least one digit)
     // TODO(michaelfromyeg): stop compiling regex every time
     let id_regex = Regex::new(r"^[A-Z]+-\d+$").unwrap();
+
+    // Notice how we don't have to write `return` here - Rust automatically returns the last expression
     id_regex.is_match(s)
 }
 
@@ -338,6 +461,8 @@ mod parse_todo_attributes_tests {
 }
 
 fn parse_attributes_from_string(attributes_str: &str) -> HashMap<String, TodoAttributeValue> {
+    // To create a HashMap, we need to import it from std::collections
+    // and call HashMap::new()! Very similar to Java, C++, etc.
     let mut attributes = HashMap::new();
 
     for attr in attributes_str.split(", ") {
@@ -347,6 +472,7 @@ fn parse_attributes_from_string(attributes_str: &str) -> HashMap<String, TodoAtt
         }
 
         if attr.contains('=') {
+            // `collect` here turns an iterator into a collection (Vec in this case)
             let parts: Vec<&str> = attr.splitn(2, '=').collect();
             let key = parts[0].trim().to_string();
             let value = parts[1].trim();
