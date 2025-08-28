@@ -2,11 +2,12 @@
 source: tests/cli.rs
 expression: stdout
 ---
+Found token: ntn_526391...
 Loaded configuration from '.tudu.yaml'
-Using configuration: Config { scan: ScanConfig { ignore: ["target/", "node_modules/"], include: ["**/*"], match_case_insensitive: false }, mode: "validate", output: OutputConfig { format: "standard", verbose: false } }
-Scanned and found 35 TODOs
+Using configuration: Config { scan: ScanConfig { ignore: ["target/", "node_modules/"], include: ["**/*"], match_case_insensitive: false }, mode: "validate", providers: {"notion": Notion(NotionConfig { database_id: "25dc4188fa0e806c9dd1f4e7327751c5" })}, output: OutputConfig { format: "standard", verbose: false } }
+Scanned and found 36 TODOs
 
-Found 35 TODOs:
+Found 36 TODOs:
 📁 tests/fixtures/repo/app.py:
   Line 1
 
@@ -55,7 +56,8 @@ Found 35 TODOs:
   Line 4
   Line 8
   Line 9
+  Line 10
 
 ==========================
 
-Total: 35 TODOs across 4 file(s)
+Total: 36 TODOs across 4 file(s)

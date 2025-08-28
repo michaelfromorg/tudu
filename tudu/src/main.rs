@@ -10,98 +10,19 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 
-#[derive(Debug, Clone)]
-enum TodoReference {
-    Untracked,                     // Plain TODO: without ID
-    Tracked(String),               // TODO(TASK-123):
-    New { title: Option<String> }, // TODO(new="Create user service"):
-}
+use tudu::{
+    Args, Config, ProviderConfig, TodoAttributeValue, TodoItem, TodoReference,
+    providers::{IssueProvider, NotionProvider},
+};
 
-#[derive(Debug, Clone, PartialEq)]
-enum TodoAttributeValue {
-    Flag(bool),        // bidir
-    Text(String),      // assignee=alice
-    List(Vec<String>), // labels=urgent,backend
-}
-
-#[derive(Debug, Clone)]
-struct TodoItem {
-    file_path: PathBuf,
-    line_number: usize,
-    line_content: String,
-    reference: Option<TodoReference>,
-    attributes: Option<HashMap<String, TodoAttributeValue>>,
-}
-
-#[derive(Parser)]
-struct Args {
-    /// File or directory to scan
-    #[arg(value_name = "PATH")]
-    path: PathBuf,
-
-    /// Show verbose output
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// Output format: standard or json (overrides config)  
-    #[arg(long)]
-    format: Option<String>,
-}
-
-#[derive(serde::Deserialize, Debug)]
-struct Config {
-    #[serde(default)]
-    scan: ScanConfig,
-    #[serde(default = "default_mode")]
-    mode: String,
-    #[serde(default)]
-    output: OutputConfig,
-}
-
-#[derive(serde::Deserialize, Debug, Default)]
-#[serde(default)]
-struct ScanConfig {
-    ignore: Vec<String>,
-    include: Vec<String>,
-    match_case_insensitive: bool,
-}
-
-#[derive(serde::Deserialize, Debug)]
-struct OutputConfig {
-    #[serde(default = "default_format")]
-    format: String,
-    #[serde(default)]
-    verbose: bool,
-}
-
-fn default_mode() -> String {
-    "validate".to_string()
-}
-
-fn default_format() -> String {
-    "standard".to_string()
-}
-
-impl Default for OutputConfig {
-    fn default() -> Self {
-        Self {
-            format: default_format(),
-            verbose: false,
-        }
+#[tokio::main]
+async fn main() {
+    dotenvy::dotenv().ok();
+    match std::env::var("NOTION_TOKEN") {
+        Ok(token) => println!("Found token: {}...", &token[..10]),
+        Err(_) => println!("❌ No NOTION_TOKEN found in environment"),
     }
-}
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            scan: ScanConfig::default(),
-            mode: default_mode(),
-            output: OutputConfig::default(),
-        }
-    }
-}
-
-fn main() {
     let args = Args::parse();
 
     if !args.path.exists() {
@@ -133,6 +54,40 @@ fn main() {
     process_results(&all_todos);
     // TODO(michaelfromyeg): support different output formats
     print_results(&all_todos, resolve_verbose(&args, &config));
+
+    // Test out a Notion provider, if given
+    let tracked_todos: Vec<_> = all_todos
+        .iter()
+        .filter_map(|todo| match &todo.reference {
+            Some(TodoReference::Tracked(id)) => Some((todo, id)),
+            _ => None,
+        })
+        .collect();
+    // Test notion provider if configured
+    for (provider_name, provider_config) in &config.providers {
+        match provider_config {
+            ProviderConfig::Notion(notion_config) => {
+                // println!("Using Notion provider: {}", provider_name);
+
+                match NotionProvider::new(notion_config) {
+                    Ok(provider) => {
+                        for (_todo, id) in &tracked_todos {
+                            match provider.issue_exists(id).await {
+                                Ok(true) => true,
+                                Ok(false) => false,
+                                Err(e) => false,
+                            };
+                        }
+                    }
+                    Err(e) => println!("Failed to create Notion provider: {}", e),
+                }
+            }
+            _ => {
+                // Handle other provider types (Jira, Github) when you implement them
+                println!("Skipping unsupported provider type: {}", provider_name);
+            }
+        }
+    }
 }
 
 fn load_config() -> Config {
